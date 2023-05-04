@@ -9,37 +9,56 @@ import {
   Paper,
   Typography,
   Container,
+  TableFooter,
+  TablePagination,
+  CircularProgress,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, /*useMemo,*/ useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
 import { fetchUserList } from './redux/actions';
 import DeleteModal from './components/deleteModal';
-import { DELETE_USER_DETAILS, EDIT_USER_DETAILS } from './redux/actiontypes';
+import {
+  DELETE_USER_DETAILS,
+  EDIT_USER_DETAILS,
+  PAGE_NUMBER_CHANGE,
+} from './redux/actiontypes';
 import EditModal from './components/editModal';
 
 function App() {
-  const users = useSelector((state) => state.users);
-  const calledPages = useSelector((state) => state.calledPages);
   const dispatch = useDispatch();
-  // const [currentPage] = useState(1);
-  const currentPage = 1;
+  const {
+    users,
+    calledPages,
+    totalPages,
+    maxRecordsPerPage,
+    totalRecords,
+    currentPage,
+    loading
+  } = useSelector((state) => state);
+  const prevPage = useRef(currentPage);
   const [deleteModalStates, setDeleteModalStates] = useState({
     open: false,
     id: null,
   });
-  const [editModalStates, setEditModalStates] =
-    useState({
-      open: false,
-      data: null,
-    });
+  const [editModalStates, setEditModalStates] = useState({
+    open: false,
+    data: null,
+  });
+
+  const totalRows =
+    calledPages.size === totalPages ? users.length : totalRecords;
+
+  const visibleRows = users.slice(
+    (currentPage - 1) * maxRecordsPerPage,
+    currentPage * maxRecordsPerPage
+  );
 
   useEffect(() => {
-    if (!calledPages.has(currentPage)) {
-      dispatch(fetchUserList(currentPage));
-    }
+    if (calledPages.has(currentPage)) return;
+    dispatch(fetchUserList(currentPage));
   }, [dispatch, currentPage, calledPages]);
 
   return (
@@ -57,8 +76,14 @@ function App() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {users.length ? (
-              users.map((user) => (
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={6} sx={{ textAlign: 'center' }}>
+                  <CircularProgress />
+                </TableCell>
+              </TableRow>
+            ) : visibleRows.length ? (
+              visibleRows.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell align="center">{user.id}</TableCell>
                   <TableCell align="center">{user.email}</TableCell>
@@ -101,13 +126,37 @@ function App() {
               </TableRow>
             )}
           </TableBody>
+          <TableFooter>
+            <TableRow>
+              <TableCell colSpan={6}>
+                <TablePagination
+                  rowsPerPageOptions={[maxRecordsPerPage]}
+                  component="div"
+                  count={totalRows}
+                  rowsPerPage={maxRecordsPerPage}
+                  page={currentPage - 1}
+                  onPageChange={(_e, pageNumber) => {
+                    // setCurrentPage(pageNumber + 1);
+                    dispatch({
+                      type: PAGE_NUMBER_CHANGE,
+                      payload: pageNumber + 1,
+                    });
+                    prevPage.current = currentPage;
+                  }}
+                />
+              </TableCell>
+            </TableRow>
+          </TableFooter>
         </Table>
       </TableContainer>
       <DeleteModal
         {...deleteModalStates}
         onClose={() => setDeleteModalStates({ open: false, id: null })}
         onConfirm={() =>
-          dispatch({ type: DELETE_USER_DETAILS, payload: deleteModalStates.id })
+          dispatch({
+            type: DELETE_USER_DETAILS,
+            payload: deleteModalStates.id,
+          })
         }
       />
       <EditModal

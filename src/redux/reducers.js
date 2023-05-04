@@ -5,6 +5,7 @@ import {
   FETCH_USER_DETAILS_SUCCESS,
   LOADING_ENDS,
   LOADING_STARTS,
+  PAGE_NUMBER_CHANGE,
 } from './actiontypes';
 
 const initialState = {
@@ -16,6 +17,7 @@ const initialState = {
   loading: false,
   totalRecords: JSON.parse(localStorage.getItem('totalRecords')) ?? 0,
   error: null,
+  currentPage: JSON.parse(localStorage.getItem('currentPage')) ?? 1,
 };
 
 const userReducer = (state = initialState, action) => {
@@ -49,13 +51,20 @@ const userReducer = (state = initialState, action) => {
       };
     }
     case DELETE_USER_DETAILS: {
-      const userArray = state.users.filter(
-        (item) => item.id !== action.payload
-      );
+      let itemIndex = null;
+      const userArray = state.users.filter((item, index) => {
+        if (item.id !== action.payload) return true;
+        itemIndex = index;
+        return false;
+      });
+      const currentPage = itemIndex === state.users.length - 1 &&
+        itemIndex % 6 === 0 ? state.currentPage - 1 : state.currentPage;
       localStorage.setItem('users', JSON.stringify(userArray));
+      localStorage.setItem('currentPage', currentPage);
       return {
         ...state,
         users: userArray,
+        currentPage,
       };
     }
     case EDIT_USER_DETAILS: {
@@ -68,6 +77,12 @@ const userReducer = (state = initialState, action) => {
         users: state.users.map((item) =>
           item.id !== action.payload.id ? item : action.payload
         ),
+      };
+    }
+    case PAGE_NUMBER_CHANGE: {
+      return {
+        ...state,
+        currentPage: action.payload,
       };
     }
     default: {
